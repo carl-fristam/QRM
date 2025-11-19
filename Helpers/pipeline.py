@@ -97,3 +97,57 @@ def create_pipelines(random_state=42):
             ])
 
     return pipelines
+
+
+
+def run_pipeline(df, target_col='Class', test_size=0.3, random_state=42, 
+                 preprocess=True):
+    """
+    Main function to run the complete pipeline.
+    
+    Parameters:
+    -----------
+    df : DataFrame
+        Your fraud dataset (credit card fraud format)
+    target_col : str
+        Name of the target column (default: 'Class')
+    test_size : float
+        Proportion of data for testing (default: 0.3)
+    random_state : int
+        Random seed for reproducibility
+    preprocess : bool
+        Whether to scale Amount and Time features (default: True)
+        Set to False if you've already preprocessed
+    """
+    print("="*60)
+    print("FRAUD DETECTION PIPELINE: SMOTE vs CLASS WEIGHTING")
+    print("="*60)
+    
+    # Step 1: Prepare data (with preprocessing)
+    X_train, X_test, y_train, y_test = prepare_data(
+        df, target_col, test_size, random_state, preprocess
+    )
+    
+    # Step 2: Create pipelines
+    pipelines = create_pipelines(random_state)
+    
+    # Step 3: Compare models
+    results = compare_models(pipelines, X_train, X_test, y_train, y_test)
+    
+    print("\n" + "="*60)
+    print("RECOMMENDATIONS")
+    print("="*60)
+    
+    # Find best model by PR-AUC (more important for imbalanced data)
+    best_idx = np.argmax([r['pr_auc'] for r in results])
+    best_model = results[best_idx]['model']
+    
+    print(f"\nBest Model (by PR-AUC): {best_model}")
+    print("\nKey Insights:")
+    print("- ROC-AUC: Good for overall performance")
+    print("- PR-AUC: Better metric for imbalanced data (focuses on minority class)")
+    print("- F1-Score: Balance between precision and recall")
+    print("- Recall: Important if catching all frauds is critical")
+    print("- Precision: Important if false alarms are costly")
+    
+    return results, pipelines
