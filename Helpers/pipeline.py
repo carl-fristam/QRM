@@ -1,12 +1,16 @@
+import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 from xgboost import XGBClassifier
 
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, ADASYN
 from imblearn.pipeline import Pipeline as ImbPipeline
 
+#Other functions needed to import
+from Helpers.data_prep import prepare_data
+from Helpers.comparison_visualization import compare_models
 
 
 def create_pipelines(random_state=42):
@@ -24,13 +28,36 @@ def create_pipelines(random_state=42):
     # DEFINE MODELS
     # ============================
     models = {
-        "LR": LogisticRegression(random_state=random_state, max_iter=1000),
-        "DT": DecisionTreeClassifier(random_state=random_state),
-        "RF": RandomForestClassifier(random_state=random_state),
-        "XGB": XGBClassifier(
-            random_state=random_state,
-            eval_metric="logloss",
-            use_label_encoder=False
+    "LR": LogisticRegression(
+        random_state=random_state,
+        max_iter=1000,
+        solver="lbfgs",
+        penalty="l2",
+        C=1.0
+    ),
+    
+    "DT": DecisionTreeClassifier(
+        random_state=random_state,
+        max_depth=8,
+        min_samples_split=2
+    ),
+    
+    "RF": RandomForestClassifier(
+        random_state=random_state,
+        n_estimators=200,
+        max_depth=None,
+        min_samples_split=2
+    ),
+    
+    "XGB": XGBClassifier(
+        random_state=random_state,
+        eval_metric="logloss",
+        n_estimators=200,
+        learning_rate=0.1,
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        use_label_encoder=False
         )
     }
 
@@ -57,6 +84,12 @@ def create_pipelines(random_state=42):
         # ---- 2. SMOTE pipeline ----
         pipelines[f"{name}_SMOTE"] = ImbPipeline([
             ("smote", SMOTE(random_state=random_state)),
+            ("classifier", model)
+        ])
+
+        # ---- 2. ADASYN pipeline ----
+        pipelines[f"{name}_ADASYN"] = ImbPipeline([
+            ("adasyn", ADASYN(random_state=random_state)),
             ("classifier", model)
         ])
 
@@ -101,7 +134,7 @@ def create_pipelines(random_state=42):
 
 
 def run_pipeline(df, target_col='Class', test_size=0.3, random_state=42, 
-                 preprocess=True):
+                 preprocess=True, reverse_order=False):
     """
     Main function to run the complete pipeline.
     
@@ -118,6 +151,9 @@ def run_pipeline(df, target_col='Class', test_size=0.3, random_state=42,
     preprocess : bool
         Whether to scale Amount and Time features (default: True)
         Set to False if you've already preprocessed
+    reverse_order : bool
+        If True, train models in reverse order (XGB first, then RF, DT, LR)
+        Default: False (LR, DT, RF, XGB)
     """
     print("="*60)
     print("FRAUD DETECTION PIPELINE: SMOTE vs CLASS WEIGHTING")
@@ -132,7 +168,7 @@ def run_pipeline(df, target_col='Class', test_size=0.3, random_state=42,
     pipelines = create_pipelines(random_state)
     
     # Step 3: Compare models
-    results = compare_models(pipelines, X_train, X_test, y_train, y_test)
+    results = compare_models(pipelines, X_train, X_test, y_train, y_test, reverse_order)
     
     print("\n" + "="*60)
     print("RECOMMENDATIONS")

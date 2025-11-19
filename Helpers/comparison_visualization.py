@@ -116,9 +116,14 @@ def visualize_results(results, predictions, y_test):
 
 
 
-def compare_models(pipelines, X_train, X_test, y_train, y_test):
+def compare_models(pipelines, X_train, X_test, y_train, y_test, reverse_order=False):
     """
     Compare all pipelines and visualize results.
+    
+    Parameters:
+    -----------
+    reverse_order : bool
+        If True, train models in reverse order (XGB first, then RF, DT, LR)
     """
     results = []
     predictions = {}
@@ -129,7 +134,8 @@ def compare_models(pipelines, X_train, X_test, y_train, y_test):
     print(f"Total models: {len(pipelines)}\n")
 
     # Progress bar for models
-    for name, pipeline in tqdm(pipelines.items(), desc="Training models"):
+    items = reversed(list(pipelines.items())) if reverse_order else pipelines.items()
+    for name, pipeline in tqdm(items, desc="Training models"):
         
         print(f"\n→ Training {name}...")
         start = time.time()
